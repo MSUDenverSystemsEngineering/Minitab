@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<Config>
+    <Products>
+        <Product Name="Minitab17">
+            <Packages>
+                <PackageRef Type="LanguagePacks" CompareProperty="en-US" />
+            </Packages>
+        </Product>
+    </Products>
+    <All>
+        <Options>
+            <Option Name="MINITAB_LICENSE_FILE" Value="27090@vmwas22" />
+            <Option Name="INSTALLDIR" Value="%ProgramFiles%\Minitab" />
+            <Option Name="AcceptLicAgr" Value="1" />
+            <Option Name="SHORTCUT" Value="1" />
+        </Options>
+    </All>
+    <Settings>
+        <Setting Name="UILevel" Value="3" />
+        <Setting Name="LogPath" Value="%temp%\Minitab17\Setup.log" />
+    </Settings>
+</Config>
