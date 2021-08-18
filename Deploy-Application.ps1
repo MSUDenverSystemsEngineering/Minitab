@@ -1,4 +1,5 @@
-﻿<#
+<#
+
 .SYNOPSIS
 	This script performs the installation or uninstallation of an application(s).
 	# LICENSE #
@@ -38,12 +39,13 @@
 	http://psappdeploytoolkit.com
 #>
 
-[CmdletBinding()]
 ## Suppress PSScriptAnalyzer errors for not using declared variables during AppVeyor build
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseDeclaredVarsMoreThanAssignments", "", Justification="Suppresses AppVeyor errors on informational variables below")]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseDeclaredVarsMoreThanAssignments", "", Justification="Suppress AppVeyor errors on unused variables below")]
+
+[CmdletBinding()]
 Param (
 	[Parameter(Mandatory=$false)]
-	[ValidateSet('Install','Uninstall')]
+	[ValidateSet('Install','Uninstall','Repair')]
 	[string]$DeploymentType = 'Install',
 	[Parameter(Mandatory=$false)]
 	[ValidateSet('Interactive','Silent','NonInteractive')]
@@ -66,13 +68,13 @@ Try {
 	## Variables: Application
 	[string]$appVendor = ''
 	[string]$appName = 'Minitab'
-	[string]$appVersion = '19'
-	[string]$appArch = 'x86'
+	[string]$appVersion = '20'
+	[string]$appArch = 'x64'
 	[string]$appLang = 'EN'
-	[string]$appRevision = '02'
-	[string]$appScriptVersion = '3.7.0.1'
-	[string]$appScriptDate = '07/17/2019'
-	[string]$appScriptAuthor = 'Steve Patterson'
+	[string]$appRevision = '01'
+	[string]$appScriptVersion = '1.0.0'
+	[string]$appScriptDate = '07/20/2021'
+	[string]$appScriptAuthor = 'David Torres'
 	##*===============================================
 	## Variables: Install Titles (Only set here to override defaults set by the toolkit)
 	[string]$installName = ''
@@ -86,8 +88,8 @@ Try {
 
 	## Variables: Script
 	[string]$deployAppScriptFriendlyName = 'Deploy Application'
-	[version]$deployAppScriptVersion = [version]'3.7.0'
-	[string]$deployAppScriptDate = '02/13/2018'
+	[version]$deployAppScriptVersion = [version]'3.8.3'
+	[string]$deployAppScriptDate = '30/09/2020'
 	[hashtable]$deployAppScriptParameters = $psBoundParameters
 
 	## Variables: Environment
@@ -113,34 +115,27 @@ Try {
 	##* END VARIABLE DECLARATION
 	##*===============================================
 
-	If ($deploymentType -ine 'Uninstall') {
+	If ($deploymentType -ine 'Uninstall' -and $deploymentType -ine 'Repair') {
 		##*===============================================
 		##* PRE-INSTALLATION
 		##*===============================================
 		[string]$installPhase = 'Pre-Installation'
 
-		## Show Welcome Message, close Minitab if needed, verify there is enough disk space to complete the install, and persist the prompt
+		## Show Welcome Message, close Internet Explorer if required, verify there is enough disk space to complete the install, and persist the prompt
 		Show-InstallationWelcome -CloseApps 'mtb,rmd' -CheckDiskSpace -PersistPrompt
 
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
 
 		## <Perform Pre-Installation tasks here>
+		If (Get-InstalledApplication -Name "Minitab 19") {
+			$exitCode = Remove-MSIApplications -Name "Minitab 19" -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		}
+
 		## Uninstall Minitab 18
 		If (Get-InstalledApplication -Name "Minitab 18") {
 			$exitCode = Remove-MSIApplications -Name "Minitab 18" -PassThru
-			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
-		}
-
-		## Uninstall Minitab 17
-		If (Get-InstalledApplication -Name "Minitab 17") {
-			$exitCode = Execute-Process -Path "$envCommonProgramFilesX86\Minitab Shared\Minitab 17\Setup\Setup.exe" -Parameters "/p Minitab17 /x /qn" -WindowStyle "Hidden" -WaitForMsiExec -PassThru
-			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
-		}
-
-		## Uninstall Minitab 16
-		If (Get-InstalledApplication -Name "Minitab 16") {
-			$exitCode = Execute-Process -Path "$envCommonProgramFilesX86\Minitab Shared\Minitab 16\Setup\Setup.exe" -Parameters "/p Minitab16 /x /qn" -WindowStyle "Hidden" -WaitForMsiExec -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
 		}
 
@@ -156,8 +151,9 @@ Try {
 		}
 
 		## <Perform Installation tasks here>
-		$exitCode = Execute-Process -Path "$dirFiles/minitab19.1.1.0setup.x64.exe" -Parameters "/exenoui /exelang 1033 /qn ACCEPT_EULA=1 LICENSE_SERVER=vmwas22.winad.msudenver.edu LICENSE_SERVER_PORT=27090 DISABLE_UPDATES=1 DISABLE_ANALYTICS=1" -WindowStyle "Hidden" -WaitForMsiExec -PassThru
+		$exitCode = Execute-Process -Path "$dirFiles/minitab20.3.0.0setup.x64.exe" -Parameters "/exenoui /exelang 1033 /qn ACCEPT_EULA=1 LICENSE_PORTAL=1 DISABLE_UPDATES=1 DISABLE_ANALYTICS=1" -WindowStyle "Hidden" -WaitForMsiExec -PassThru
 		If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+
 
 		##*===============================================
 		##* POST-INSTALLATION
@@ -166,12 +162,11 @@ Try {
 
 		## <Perform Post-Installation tasks here>
 		## Suppress the registration prompt on first run
-		Copy-File -Path "$dirSupportFiles\license.ini" -Destination "$envProgramData\Minitab\license.ini"
-		Remove-File -Path "$envCommonDesktop\Minitab 19.lnk"
-		## Display a message at the end of the install
-		If (-not $useDefaultMsi) {
+		##Copy-File -Path "$dirSupportFiles\license.ini" -Destination "$envProgramData\Minitab\license.ini"
+		Remove-File -Path "$envCommonDesktop\Minitab 20.lnk"
 
-		}
+		## Display a message at the end of the install
+		If (-not $useDefaultMsi) {}
 	}
 	ElseIf ($deploymentType -ieq 'Uninstall')
 	{
@@ -180,8 +175,8 @@ Try {
 		##*===============================================
 		[string]$installPhase = 'Pre-Uninstallation'
 
-		## Show Welcome Message, close Minitab with a 60 second countdown before automatically closing
-		Show-InstallationWelcome -CloseApps 'mtb,rmd' -CloseAppsCountdown 60
+		## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
+		Show-InstallationWelcome -CloseApps 'iexplore' -CloseAppsCountdown 60
 
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
@@ -201,8 +196,8 @@ Try {
 		}
 
 		# <Perform Uninstallation tasks here>
-		If (Get-InstalledApplication -Name "Minitab 19") {
-			$exitCode = Remove-MSIApplications -Name "Minitab 19" -PassThru
+		If (Get-InstalledApplication -Name "Minitab 20") {
+			$exitCode = Remove-MSIApplications -Name "Minitab 20" -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
 		}
 
@@ -213,6 +208,42 @@ Try {
 
 		## <Perform Post-Uninstallation tasks here>
 
+
+	}
+	ElseIf ($deploymentType -ieq 'Repair')
+	{
+		##*===============================================
+		##* PRE-REPAIR
+		##*===============================================
+		[string]$installPhase = 'Pre-Repair'
+
+		## Show Progress Message (with the default message)
+		Show-InstallationProgress
+
+		## <Perform Pre-Repair tasks here>
+
+		##*===============================================
+		##* REPAIR
+		##*===============================================
+		[string]$installPhase = 'Repair'
+
+		## Handle Zero-Config MSI Repairs
+		If ($useDefaultMsi) {
+			[hashtable]$ExecuteDefaultMSISplat =  @{ Action = 'Repair'; Path = $defaultMsiFile; }; If ($defaultMstFile) { $ExecuteDefaultMSISplat.Add('Transform', $defaultMstFile) }
+			Execute-MSI @ExecuteDefaultMSISplat
+		}
+		# <Perform Repair tasks here>
+
+		##*===============================================
+		##* POST-REPAIR
+		##*===============================================
+		[string]$installPhase = 'Post-Repair'
+
+		## <Perform Post-Repair tasks here>
+		If (Get-InstalledApplication -Name "Minitab 20") {
+			$exitCode = Remove-MSIApplications -Name "Minitab 20" -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		}
 
 	}
 
@@ -232,143 +263,116 @@ Catch {
 }
 
 # SIG # Begin signature block
-# MIIZ7wYJKoZIhvcNAQcCoIIZ4DCCGdwCAQExDzANBglghkgBZQMEAgEFADB5Bgor
-# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBaUBvWYHghAv2S
-# QOWhO0VBR4l1a+E5Mq2g3TlTk7y4dKCCFFwwggQUMIIC/KADAgECAgsEAAAAAAEv
-# TuFS1zANBgkqhkiG9w0BAQUFADBXMQswCQYDVQQGEwJCRTEZMBcGA1UEChMQR2xv
-# YmFsU2lnbiBudi1zYTEQMA4GA1UECxMHUm9vdCBDQTEbMBkGA1UEAxMSR2xvYmFs
-# U2lnbiBSb290IENBMB4XDTExMDQxMzEwMDAwMFoXDTI4MDEyODEyMDAwMFowUjEL
-# MAkGA1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExKDAmBgNVBAMT
-# H0dsb2JhbFNpZ24gVGltZXN0YW1waW5nIENBIC0gRzIwggEiMA0GCSqGSIb3DQEB
-# AQUAA4IBDwAwggEKAoIBAQCU72X4tVefoFMNNAbrCR+3Rxhqy/Bb5P8npTTR94ka
-# v56xzRJBbmbUgaCFi2RaRi+ZoI13seK8XN0i12pn0LvoynTei08NsFLlkFvrRw7x
-# 55+cC5BlPheWMEVybTmhFzbKuaCMG08IGfaBMa1hFqRi5rRAnsP8+5X2+7UulYGY
-# 4O/F69gCWXh396rjUmtQkSnF/PfNk2XSYGEi8gb7Mt0WUfoO/Yow8BcJp7vzBK6r
-# kOds33qp9O/EYidfb5ltOHSqEYva38cUTOmFsuzCfUomj+dWuqbgz5JTgHT0A+xo
-# smC8hCAAgxuh7rR0BcEpjmLQR7H68FPMGPkuO/lwfrQlAgMBAAGjgeUwgeIwDgYD
-# VR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQIMAYBAf8CAQAwHQYDVR0OBBYEFEbYPv/c
-# 477/g+b0hZuw3WrWFKnBMEcGA1UdIARAMD4wPAYEVR0gADA0MDIGCCsGAQUFBwIB
-# FiZodHRwczovL3d3dy5nbG9iYWxzaWduLmNvbS9yZXBvc2l0b3J5LzAzBgNVHR8E
-# LDAqMCigJqAkhiJodHRwOi8vY3JsLmdsb2JhbHNpZ24ubmV0L3Jvb3QuY3JsMB8G
-# A1UdIwQYMBaAFGB7ZhpFDZfKiVAvfQTNNKj//P1LMA0GCSqGSIb3DQEBBQUAA4IB
-# AQBOXlaQHka02Ukx87sXOSgbwhbd/UHcCQUEm2+yoprWmS5AmQBVteo/pSB204Y0
-# 1BfMVTrHgu7vqLq82AafFVDfzRZ7UjoC1xka/a/weFzgS8UY3zokHtqsuKlYBAIH
-# MNuwEl7+Mb7wBEj08HD4Ol5Wg889+w289MXtl5251NulJ4TjOJuLpzWGRCCkO22k
-# aguhg/0o69rvKPbMiF37CjsAq+Ah6+IvNWwPjjRFl+ui95kzNX7Lmoq7RU3nP5/C
-# 2Yr6ZbJux35l/+iS4SwxovewJzZIjyZvO+5Ndh95w+V/ljW8LQ7MAbCOf/9RgICn
-# ktSzREZkjIdPFmMHMUtjsN/zMIIEnzCCA4egAwIBAgISESHWmadklz7x+EJ+6RnM
-# U0EUMA0GCSqGSIb3DQEBBQUAMFIxCzAJBgNVBAYTAkJFMRkwFwYDVQQKExBHbG9i
-# YWxTaWduIG52LXNhMSgwJgYDVQQDEx9HbG9iYWxTaWduIFRpbWVzdGFtcGluZyBD
-# QSAtIEcyMB4XDTE2MDUyNDAwMDAwMFoXDTI3MDYyNDAwMDAwMFowYDELMAkGA1UE
-# BhMCU0cxHzAdBgNVBAoTFkdNTyBHbG9iYWxTaWduIFB0ZSBMdGQxMDAuBgNVBAMT
-# J0dsb2JhbFNpZ24gVFNBIGZvciBNUyBBdXRoZW50aWNvZGUgLSBHMjCCASIwDQYJ
-# KoZIhvcNAQEBBQADggEPADCCAQoCggEBALAXrqLTtgQwVh5YD7HtVaTWVMvY9nM6
-# 7F1eqyX9NqX6hMNhQMVGtVlSO0KiLl8TYhCpW+Zz1pIlsX0j4wazhzoOQ/DXAIlT
-# ohExUihuXUByPPIJd6dJkpfUbJCgdqf9uNyznfIHYCxPWJgAa9MVVOD63f+ALF8Y
-# ppj/1KvsoUVZsi5vYl3g2Rmsi1ecqCYr2RelENJHCBpwLDOLf2iAKrWhXWvdjQIC
-# KQOqfDe7uylOPVOTs6b6j9JYkxVMuS2rgKOjJfuv9whksHpED1wQ119hN6pOa9PS
-# UyWdgnP6LPlysKkZOSpQ+qnQPDrK6Fvv9V9R9PkK2Zc13mqF5iMEQq8CAwEAAaOC
-# AV8wggFbMA4GA1UdDwEB/wQEAwIHgDBMBgNVHSAERTBDMEEGCSsGAQQBoDIBHjA0
-# MDIGCCsGAQUFBwIBFiZodHRwczovL3d3dy5nbG9iYWxzaWduLmNvbS9yZXBvc2l0
-# b3J5LzAJBgNVHRMEAjAAMBYGA1UdJQEB/wQMMAoGCCsGAQUFBwMIMEIGA1UdHwQ7
-# MDkwN6A1oDOGMWh0dHA6Ly9jcmwuZ2xvYmFsc2lnbi5jb20vZ3MvZ3N0aW1lc3Rh
-# bXBpbmdnMi5jcmwwVAYIKwYBBQUHAQEESDBGMEQGCCsGAQUFBzAChjhodHRwOi8v
-# c2VjdXJlLmdsb2JhbHNpZ24uY29tL2NhY2VydC9nc3RpbWVzdGFtcGluZ2cyLmNy
-# dDAdBgNVHQ4EFgQU1KKESjhaGH+6TzBQvZ3VeofWCfcwHwYDVR0jBBgwFoAURtg+
-# /9zjvv+D5vSFm7DdatYUqcEwDQYJKoZIhvcNAQEFBQADggEBAI+pGpFtBKY3IA6D
-# lt4j02tuH27dZD1oISK1+Ec2aY7hpUXHJKIitykJzFRarsa8zWOOsz1QSOW0zK7N
-# ko2eKIsTShGqvaPv07I2/LShcr9tl2N5jES8cC9+87zdglOrGvbr+hyXvLY3nKQc
-# MLyrvC1HNt+SIAPoccZY9nUFmjTwC1lagkQ0qoDkL4T2R12WybbKyp23prrkUNPU
-# N7i6IA7Q05IqW8RZu6Ft2zzORJ3BOCqt4429zQl3GhC+ZwoCNmSIubMbJu7nnmDE
-# Rqi8YTNsz065nLlq8J83/rU9T5rTTf/eII5Ol6b9nwm8TcoYdsmwTYVQ8oDSHQb1
-# WAQHsRgwggWuMIIElqADAgECAhAHA3HRD3laQHGZK5QHYpviMA0GCSqGSIb3DQEB
-# CwUAMHwxCzAJBgNVBAYTAlVTMQswCQYDVQQIEwJNSTESMBAGA1UEBxMJQW5uIEFy
-# Ym9yMRIwEAYDVQQKEwlJbnRlcm5ldDIxETAPBgNVBAsTCEluQ29tbW9uMSUwIwYD
-# VQQDExxJbkNvbW1vbiBSU0EgQ29kZSBTaWduaW5nIENBMB4XDTE4MDYyMTAwMDAw
-# MFoXDTIxMDYyMDIzNTk1OVowgbkxCzAJBgNVBAYTAlVTMQ4wDAYDVQQRDAU4MDIw
-# NDELMAkGA1UECAwCQ08xDzANBgNVBAcMBkRlbnZlcjEYMBYGA1UECQwPMTIwMSA1
-# dGggU3RyZWV0MTAwLgYDVQQKDCdNZXRyb3BvbGl0YW4gU3RhdGUgVW5pdmVyc2l0
-# eSBvZiBEZW52ZXIxMDAuBgNVBAMMJ01ldHJvcG9saXRhbiBTdGF0ZSBVbml2ZXJz
-# aXR5IG9mIERlbnZlcjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMtX
-# iSjEDjYNBIYXsPnFGHwZqvS5lgRNSaQjsyxgLsGI6yLLDCpaYy3CBwN1on4QnYzE
-# QpsHV+TJ/3K61ZvqAxhR6Anw8TjVjaB3kPdtKJjEUlgiXNK0nDRyMVasZyeXALR5
-# STSf1SxoMt8HIDd0KTB8yhME6ezFdFzwB5He2/jyOswfYsN+n4k2Q9UcaVtWgCzW
-# ua39anwNva7M4GugPO5ZkF6XkrGzRHpXctV/Fk6LmqPY6sRm45nScnC1KQ3NN/t6
-# ZBHzmAtgbZa41o5+AvNdkv9TVF6S3ODGpf3qKW8kjFt82LLYdZi0V07ln+S/BtAl
-# GUPOvqem4EkbMtZ5M3MCAwEAAaOCAewwggHoMB8GA1UdIwQYMBaAFK41Ixf//wY9
-# nFDgjCRlMx5wEIiiMB0GA1UdDgQWBBSl6YhuvPlIpfXzOIq+Y/mkDGObDzAOBgNV
-# HQ8BAf8EBAMCB4AwDAYDVR0TAQH/BAIwADATBgNVHSUEDDAKBggrBgEFBQcDAzAR
-# BglghkgBhvhCAQEEBAMCBBAwZgYDVR0gBF8wXTBbBgwrBgEEAa4jAQQDAgEwSzBJ
-# BggrBgEFBQcCARY9aHR0cHM6Ly93d3cuaW5jb21tb24ub3JnL2NlcnQvcmVwb3Np
-# dG9yeS9jcHNfY29kZV9zaWduaW5nLnBkZjBJBgNVHR8EQjBAMD6gPKA6hjhodHRw
-# Oi8vY3JsLmluY29tbW9uLXJzYS5vcmcvSW5Db21tb25SU0FDb2RlU2lnbmluZ0NB
-# LmNybDB+BggrBgEFBQcBAQRyMHAwRAYIKwYBBQUHMAKGOGh0dHA6Ly9jcnQuaW5j
-# b21tb24tcnNhLm9yZy9JbkNvbW1vblJTQUNvZGVTaWduaW5nQ0EuY3J0MCgGCCsG
-# AQUFBzABhhxodHRwOi8vb2NzcC5pbmNvbW1vbi1yc2Eub3JnMC0GA1UdEQQmMCSB
-# Iml0c3N5c3RlbWVuZ2luZWVyaW5nQG1zdWRlbnZlci5lZHUwDQYJKoZIhvcNAQEL
-# BQADggEBAIc2PVq7BamWAujyCQPHsGCDbM3i1OY5nruA/fOtbJ6mJvT9UJY4+61g
-# rcHLzV7op1y0nRhV459TrKfHKO42uRyZpdnHaOoC080cfg/0EwFJRy3bYB0vkVP8
-# TeUkvUhbtcPVofI1P/wh9ZT2iYVCerOOAqivxWqh8Dt+8oSbjSGhPFWyu04b8Ucz
-# bK/97uXdgK0zNcXDJUjMKr6CbevfLQLfQiFPizaej+2fvR/jZHAvxO9W2rhd6Nw6
-# gFs2q3P4CFK0+yAkFCLk+9wsp+RsRvRkvdWJp+anNvAKOyVfCj6sz5dQPAIYIyLh
-# y9ze3taVKm99DQQZV/wN/ATPDftLGm0wggXrMIID06ADAgECAhBl4eLj1d5QRYXz
-# JiSABeLUMA0GCSqGSIb3DQEBDQUAMIGIMQswCQYDVQQGEwJVUzETMBEGA1UECBMK
-# TmV3IEplcnNleTEUMBIGA1UEBxMLSmVyc2V5IENpdHkxHjAcBgNVBAoTFVRoZSBV
-# U0VSVFJVU1QgTmV0d29yazEuMCwGA1UEAxMlVVNFUlRydXN0IFJTQSBDZXJ0aWZp
-# Y2F0aW9uIEF1dGhvcml0eTAeFw0xNDA5MTkwMDAwMDBaFw0yNDA5MTgyMzU5NTla
-# MHwxCzAJBgNVBAYTAlVTMQswCQYDVQQIEwJNSTESMBAGA1UEBxMJQW5uIEFyYm9y
-# MRIwEAYDVQQKEwlJbnRlcm5ldDIxETAPBgNVBAsTCEluQ29tbW9uMSUwIwYDVQQD
-# ExxJbkNvbW1vbiBSU0EgQ29kZSBTaWduaW5nIENBMIIBIjANBgkqhkiG9w0BAQEF
-# AAOCAQ8AMIIBCgKCAQEAwKAvix56u2p1rPg+3KO6OSLK86N25L99MCfmutOYMlYj
-# XAaGlw2A6O2igTXrC/Zefqk+aHP9ndRnec6q6mi3GdscdjpZh11emcehsriphHMM
-# zKuHRhxqx+85Jb6n3dosNXA2HSIuIDvd4xwOPzSf5X3+VYBbBnyCV4RV8zj78gw2
-# qblessWBRyN9EoGgwAEoPgP5OJejrQLyAmj91QGr9dVRTVDTFyJG5XMY4DrkN3dR
-# yJ59UopPgNwmucBMyvxR+hAJEXpXKnPE4CEqbMJUvRw+g/hbqSzx+tt4z9mJmm2j
-# /w2nP35MViPWCb7hpR2LB8W/499Yqu+kr4LLBfgKCQIDAQABo4IBWjCCAVYwHwYD
-# VR0jBBgwFoAUU3m/WqorSs9UgOHYm8Cd8rIDZsswHQYDVR0OBBYEFK41Ixf//wY9
-# nFDgjCRlMx5wEIiiMA4GA1UdDwEB/wQEAwIBhjASBgNVHRMBAf8ECDAGAQH/AgEA
-# MBMGA1UdJQQMMAoGCCsGAQUFBwMDMBEGA1UdIAQKMAgwBgYEVR0gADBQBgNVHR8E
-# STBHMEWgQ6BBhj9odHRwOi8vY3JsLnVzZXJ0cnVzdC5jb20vVVNFUlRydXN0UlNB
-# Q2VydGlmaWNhdGlvbkF1dGhvcml0eS5jcmwwdgYIKwYBBQUHAQEEajBoMD8GCCsG
-# AQUFBzAChjNodHRwOi8vY3J0LnVzZXJ0cnVzdC5jb20vVVNFUlRydXN0UlNBQWRk
-# VHJ1c3RDQS5jcnQwJQYIKwYBBQUHMAGGGWh0dHA6Ly9vY3NwLnVzZXJ0cnVzdC5j
-# b20wDQYJKoZIhvcNAQENBQADggIBAEYstn9qTiVmvZxqpqrQnr0Prk41/PA4J8HH
-# nQTJgjTbhuET98GWjTBEE9I17Xn3V1yTphJXbat5l8EmZN/JXMvDNqJtkyOh26ow
-# AmvquMCF1pKiQWyuDDllxR9MECp6xF4wnH1Mcs4WeLOrQPy+C5kWE5gg/7K6c9G1
-# VNwLkl/po9ORPljxKKeFhPg9+Ti3JzHIxW7LdyljffccWiuNFR51/BJHAZIqUDw3
-# LsrdYWzgg4x06tgMvOEf0nITelpFTxqVvMtJhnOfZbpdXZQ5o1TspxfTEVOQAsp0
-# 5HUNCXyhznlVLr0JaNkM7edgk59zmdTbSGdMq8Ztuu6VyrivOlMSPWmay5MjvwTz
-# uNorbwBv0DL+7cyZBp7NYZou+DoGd1lFZN0jU5IsQKgm3+00pnnJ67crdFwfz/8b
-# q3MhTiKOWEb04FT3OZVp+jzvaChHWLQ8gbCORgClaZq1H3aqI7JeRkWEEEp6Tv4W
-# AVsr/i7LoXU72gOb8CAzPFqwI4Excdrxp0I4OXbECHlDqU4sTInqwlMwofmxeO4u
-# 94196qIqJQl+8Sykl06VktqMux84Iw3ZQLH08J8LaJ+WDUycc4OjY61I7FGxCDkb
-# SQf3npXeRFm0IBn8GiW+TRDk6J2XJFLWEtVZmhboFlBLoUlqHUCKu0QOhU/+AEOq
-# nY98j2zRMYIE6TCCBOUCAQEwgZAwfDELMAkGA1UEBhMCVVMxCzAJBgNVBAgTAk1J
-# MRIwEAYDVQQHEwlBbm4gQXJib3IxEjAQBgNVBAoTCUludGVybmV0MjERMA8GA1UE
-# CxMISW5Db21tb24xJTAjBgNVBAMTHEluQ29tbW9uIFJTQSBDb2RlIFNpZ25pbmcg
-# Q0ECEAcDcdEPeVpAcZkrlAdim+IwDQYJYIZIAWUDBAIBBQCggYQwGAYKKwYBBAGC
-# NwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgor
-# BgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAvBgkqhkiG9w0BCQQxIgQgqc/gu95p
-# dsZp7blJXfMeTu+zO9RqrFloQ/2Y1xYSBScwDQYJKoZIhvcNAQEBBQAEggEADiUL
-# sf+tZKf/3Yy2CD0g43cQOTfsQiv0h45bXfeKkkuKcd1bZwqyOQ435HvIXqrM5eaD
-# LtmsZj85ynsPtaZgocYJd/UmS3QWfy8vnJosLAk1mGT1nca8X+TORKA/v+oD12H4
-# +dDFyxan4bKz+Lj6gRXp8eMp8n52YG7ilt+ca+xFkNWgdAukAZjiUW5JTT9jboAB
-# 4otil0gblf79XSKqlkjbVm7wHceES/bZSMOG2NFu6BkXCQOCqJxhyrLOTNdaC9ZO
-# wtuXkgK7qmHiiIRGrr63p4IaYmkR3Fh/XcSsiy+oY0+8a/tvVOgBSw2CZ14SCzft
-# 9ql0kMZVD+mtRwsYPaGCAqIwggKeBgkqhkiG9w0BCQYxggKPMIICiwIBATBoMFIx
-# CzAJBgNVBAYTAkJFMRkwFwYDVQQKExBHbG9iYWxTaWduIG52LXNhMSgwJgYDVQQD
-# Ex9HbG9iYWxTaWduIFRpbWVzdGFtcGluZyBDQSAtIEcyAhIRIdaZp2SXPvH4Qn7p
-# GcxTQRQwCQYFKw4DAhoFAKCB/TAYBgkqhkiG9w0BCQMxCwYJKoZIhvcNAQcBMBwG
-# CSqGSIb3DQEJBTEPFw0xOTA3MTcyMDA3MzZaMCMGCSqGSIb3DQEJBDEWBBRXEv8S
-# wxk9pZfjMlfyICMbabtqeDCBnQYLKoZIhvcNAQkQAgwxgY0wgYowgYcwgYQEFGO4
-# L6th9YOQlpUFCwAknFApM+x5MGwwVqRUMFIxCzAJBgNVBAYTAkJFMRkwFwYDVQQK
-# ExBHbG9iYWxTaWduIG52LXNhMSgwJgYDVQQDEx9HbG9iYWxTaWduIFRpbWVzdGFt
-# cGluZyBDQSAtIEcyAhIRIdaZp2SXPvH4Qn7pGcxTQRQwDQYJKoZIhvcNAQEBBQAE
-# ggEAem7SJH6SLJVSW7EzLL+bCPlJD0Ox+DjvtMI5Y+2MpUDa76PbpsRDpdfzC9Ql
-# 3LhKBWzJYhj+eMhYrbG6gkRO/gIGMOFCf3BQmFhG0oFCB4KQQYuHNFICWq6c1KvD
-# KqfZz7VQFqslNmuaFu+EAvCoAQfT9xN0OBOmffefhrbDSsZ8Ws+lS8TW8chEA3tE
-# QDc8pQUinW1ZVCJimrECYq65PsHcOq+llNMizMWrjRkcHSzMEcdn3yoMgtTfRJsT
-# KezoXwz/E78xScQP0s5ITCWQQ5F+T2ZYgDpN+DyXU+WK89K86RfOMb3ePma+Q3yn
-# FWaD+58+Ime/D/GqcVqFLuxFDA==
+# MIIU9wYJKoZIhvcNAQcCoIIU6DCCFOQCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
+# gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQURqVKdLHHlzheitXueM4XDgAK
+# GOqgghHXMIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
+# MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
+# MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
+# MFoXDTI4MTIzMTIzNTk1OVowVjELMAkGA1UEBhMCR0IxGDAWBgNVBAoTD1NlY3Rp
+# Z28gTGltaXRlZDEtMCsGA1UEAxMkU2VjdGlnbyBQdWJsaWMgQ29kZSBTaWduaW5n
+# IFJvb3QgUjQ2MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAjeeUEiIE
+# JHQu/xYjApKKtq42haxH1CORKz7cfeIxoFFvrISR41KKteKW3tCHYySJiv/vEpM7
+# fbu2ir29BX8nm2tl06UMabG8STma8W1uquSggyfamg0rUOlLW7O4ZDakfko9qXGr
+# YbNzszwLDO/bM1flvjQ345cbXf0fEj2CA3bm+z9m0pQxafptszSswXp43JJQ8mTH
+# qi0Eq8Nq6uAvp6fcbtfo/9ohq0C/ue4NnsbZnpnvxt4fqQx2sycgoda6/YDnAdLv
+# 64IplXCN/7sVz/7RDzaiLk8ykHRGa0c1E3cFM09jLrgt4b9lpwRrGNhx+swI8m2J
+# mRCxrds+LOSqGLDGBwF1Z95t6WNjHjZ/aYm+qkU+blpfj6Fby50whjDoA7NAxg0P
+# OM1nqFOI+rgwZfpvx+cdsYN0aT6sxGg7seZnM5q2COCABUhA7vaCZEao9XOwBpXy
+# bGWfv1VbHJxXGsd4RnxwqpQbghesh+m2yQ6BHEDWFhcp/FycGCvqRfXvvdVnTyhe
+# Be6QTHrnxvTQ/PrNPjJGEyA2igTqt6oHRpwNkzoJZplYXCmjuQymMDg80EY2NXyc
+# uu7D1fkKdvp+BRtAypI16dV60bV/AK6pkKrFfwGcELEW/MxuGNxvYv6mUKe4e7id
+# FT/+IAx1yCJaE5UZkADpGtXChvHjjuxf9OUCAwEAAaOCARIwggEOMB8GA1UdIwQY
+# MBaAFKARCiM+lvEH7OKvKe+CpX/QMKS0MB0GA1UdDgQWBBQy65Ka/zWWSC8oQEJw
+# IDaRXBeF5jAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zATBgNVHSUE
+# DDAKBggrBgEFBQcDAzAbBgNVHSAEFDASMAYGBFUdIAAwCAYGZ4EMAQQBMEMGA1Ud
+# HwQ8MDowOKA2oDSGMmh0dHA6Ly9jcmwuY29tb2RvY2EuY29tL0FBQUNlcnRpZmlj
+# YXRlU2VydmljZXMuY3JsMDQGCCsGAQUFBwEBBCgwJjAkBggrBgEFBQcwAYYYaHR0
+# cDovL29jc3AuY29tb2RvY2EuY29tMA0GCSqGSIb3DQEBDAUAA4IBAQASv6Hvi3Sa
+# mES4aUa1qyQKDKSKZ7g6gb9Fin1SB6iNH04hhTmja14tIIa/ELiueTtTzbT72ES+
+# BtlcY2fUQBaHRIZyKtYyFfUSg8L54V0RQGf2QidyxSPiAjgaTCDi2wH3zUZPJqJ8
+# ZsBRNraJAlTH/Fj7bADu/pimLpWhDFMpH2/YGaZPnvesCepdgsaLr4CnvYFIUoQx
+# 2jLsFeSmTD1sOXPUC4U5IOCFGmjhp0g4qdE2JXfBjRkWxYhMZn0vY86Y6GnfrDyo
+# XZ3JHFuu2PMvdM+4fvbXg50RlmKarkUT2n/cR/vfw1Kf5gZV6Z2M8jpiUbzsJA8p
+# 1FiAhORFe1rYMIIGGjCCBAKgAwIBAgIQYh1tDFIBnjuQeRUgiSEcCjANBgkqhkiG
+# 9w0BAQwFADBWMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVk
+# MS0wKwYDVQQDEyRTZWN0aWdvIFB1YmxpYyBDb2RlIFNpZ25pbmcgUm9vdCBSNDYw
+# HhcNMjEwMzIyMDAwMDAwWhcNMzYwMzIxMjM1OTU5WjBUMQswCQYDVQQGEwJHQjEY
+# MBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMSswKQYDVQQDEyJTZWN0aWdvIFB1Ymxp
+# YyBDb2RlIFNpZ25pbmcgQ0EgUjM2MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIB
+# igKCAYEAmyudU/o1P45gBkNqwM/1f/bIU1MYyM7TbH78WAeVF3llMwsRHgBGRmxD
+# eEDIArCS2VCoVk4Y/8j6stIkmYV5Gej4NgNjVQ4BYoDjGMwdjioXan1hlaGFt4Wk
+# 9vT0k2oWJMJjL9G//N523hAm4jF4UjrW2pvv9+hdPX8tbbAfI3v0VdJiJPFy/7Xw
+# iunD7mBxNtecM6ytIdUlh08T2z7mJEXZD9OWcJkZk5wDuf2q52PN43jc4T9OkoXZ
+# 0arWZVeffvMr/iiIROSCzKoDmWABDRzV/UiQ5vqsaeFaqQdzFf4ed8peNWh1OaZX
+# nYvZQgWx/SXiJDRSAolRzZEZquE6cbcH747FHncs/Kzcn0Ccv2jrOW+LPmnOyB+t
+# AfiWu01TPhCr9VrkxsHC5qFNxaThTG5j4/Kc+ODD2dX/fmBECELcvzUHf9shoFvr
+# n35XGf2RPaNTO2uSZ6n9otv7jElspkfK9qEATHZcodp+R4q2OIypxR//YEb3fkDn
+# 3UayWW9bAgMBAAGjggFkMIIBYDAfBgNVHSMEGDAWgBQy65Ka/zWWSC8oQEJwIDaR
+# XBeF5jAdBgNVHQ4EFgQUDyrLIIcouOxvSK4rVKYpqhekzQwwDgYDVR0PAQH/BAQD
+# AgGGMBIGA1UdEwEB/wQIMAYBAf8CAQAwEwYDVR0lBAwwCgYIKwYBBQUHAwMwGwYD
+# VR0gBBQwEjAGBgRVHSAAMAgGBmeBDAEEATBLBgNVHR8ERDBCMECgPqA8hjpodHRw
+# Oi8vY3JsLnNlY3RpZ28uY29tL1NlY3RpZ29QdWJsaWNDb2RlU2lnbmluZ1Jvb3RS
+# NDYuY3JsMHsGCCsGAQUFBwEBBG8wbTBGBggrBgEFBQcwAoY6aHR0cDovL2NydC5z
+# ZWN0aWdvLmNvbS9TZWN0aWdvUHVibGljQ29kZVNpZ25pbmdSb290UjQ2LnA3YzAj
+# BggrBgEFBQcwAYYXaHR0cDovL29jc3Auc2VjdGlnby5jb20wDQYJKoZIhvcNAQEM
+# BQADggIBAAb/guF3YzZue6EVIJsT/wT+mHVEYcNWlXHRkT+FoetAQLHI1uBy/YXK
+# ZDk8+Y1LoNqHrp22AKMGxQtgCivnDHFyAQ9GXTmlk7MjcgQbDCx6mn7yIawsppWk
+# vfPkKaAQsiqaT9DnMWBHVNIabGqgQSGTrQWo43MOfsPynhbz2Hyxf5XWKZpRvr3d
+# MapandPfYgoZ8iDL2OR3sYztgJrbG6VZ9DoTXFm1g0Rf97Aaen1l4c+w3DC+IkwF
+# kvjFV3jS49ZSc4lShKK6BrPTJYs4NG1DGzmpToTnwoqZ8fAmi2XlZnuchC4NPSZa
+# PATHvNIzt+z1PHo35D/f7j2pO1S8BCysQDHCbM5Mnomnq5aYcKCsdbh0czchOm8b
+# kinLrYrKpii+Tk7pwL7TjRKLXkomm5D1Umds++pip8wH2cQpf93at3VDcOK4N7Ew
+# oIJB0kak6pSzEu4I64U6gZs7tS/dGNSljf2OSSnRr7KWzq03zl8l75jy+hOds9TW
+# SenLbjBQUGR96cFr6lEUfAIEHVC1L68Y1GGxx4/eRI82ut83axHMViw1+sVpbPxg
+# 51Tbnio1lB93079WPFnYaOvfGAA0e0zcfF/M9gXr+korwQTh2Prqooq2bYNMvUoU
+# KD85gnJ+t0smrWrb8dee2CvYZXD5laGtaAxOfy/VKNmwuWuAh9kcMIIGQjCCBKqg
+# AwIBAgIRAKVN33D73PFMVIK48rFyyjEwDQYJKoZIhvcNAQEMBQAwVDELMAkGA1UE
+# BhMCR0IxGDAWBgNVBAoTD1NlY3RpZ28gTGltaXRlZDErMCkGA1UEAxMiU2VjdGln
+# byBQdWJsaWMgQ29kZSBTaWduaW5nIENBIFIzNjAeFw0yMTA2MDkwMDAwMDBaFw0y
+# NDA2MDgyMzU5NTlaMIGVMQswCQYDVQQGEwJVUzERMA8GA1UECAwIQ29sb3JhZG8x
+# DzANBgNVBAcMBkRlbnZlcjEwMC4GA1UECgwnTWV0cm9wb2xpdGFuIFN0YXRlIFVu
+# aXZlcnNpdHkgb2YgRGVudmVyMTAwLgYDVQQDDCdNZXRyb3BvbGl0YW4gU3RhdGUg
+# VW5pdmVyc2l0eSBvZiBEZW52ZXIwggGiMA0GCSqGSIb3DQEBAQUAA4IBjwAwggGK
+# AoIBgQCm6Atd6yEc/W5UCNp/h5BikWqPKgINMSLcRjaIRilzk9VGu4Q1hufpdjAa
+# XXW0EHzEjshU/gMorErUXxUW9U1NWkiPEMRydb5DquuAGSlyCrjcUxEL+9USsk4J
+# 483biCOEKgYbCLK1+LzeT2hav8ioyaikrGEIxXo+CsdnzkVzBUR56mgBlu6gMCby
+# nE1As1Z/9YavXYem908Tnd7dcdi9D2s/+GhfiQIZDThfRnNgfIXk6EZZU0DjklHT
+# 898JFt8u7us3CTBIMXp54kz+35N+PIV5azwY8me6oswid8Fh/kEagakoXimTfzpc
+# OmmHaiwJm5fS2d2dP670DJPwA0x7GOYwF8AEY8QJVPoJ8Y/+pMrEuiQxT/tB+wg9
+# 30ZUgTlrHD24N9eM3hjMfHjizfNVlirv+/Ut1h1gH/OLsTZ6dg3Ff/GjbI16GsX3
+# UFlyaerN1dcH+ScsL+58XGYLUufjCcx07/mHN4T1D+14y6WgIpx3/Pq2nusj+zle
+# q9yWd/UCAwEAAaOCAcswggHHMB8GA1UdIwQYMBaAFA8qyyCHKLjsb0iuK1SmKaoX
+# pM0MMB0GA1UdDgQWBBTLXarMi7SgsX53Cweg5K+AM/BXJTAOBgNVHQ8BAf8EBAMC
+# B4AwDAYDVR0TAQH/BAIwADATBgNVHSUEDDAKBggrBgEFBQcDAzARBglghkgBhvhC
+# AQEEBAMCBBAwSgYDVR0gBEMwQTA1BgwrBgEEAbIxAQIBAwIwJTAjBggrBgEFBQcC
+# ARYXaHR0cHM6Ly9zZWN0aWdvLmNvbS9DUFMwCAYGZ4EMAQQBMEkGA1UdHwRCMEAw
+# PqA8oDqGOGh0dHA6Ly9jcmwuc2VjdGlnby5jb20vU2VjdGlnb1B1YmxpY0NvZGVT
+# aWduaW5nQ0FSMzYuY3JsMHkGCCsGAQUFBwEBBG0wazBEBggrBgEFBQcwAoY4aHR0
+# cDovL2NydC5zZWN0aWdvLmNvbS9TZWN0aWdvUHVibGljQ29kZVNpZ25pbmdDQVIz
+# Ni5jcnQwIwYIKwYBBQUHMAGGF2h0dHA6Ly9vY3NwLnNlY3RpZ28uY29tMC0GA1Ud
+# EQQmMCSBIml0c3N5c3RlbWVuZ2luZWVyaW5nQG1zdWRlbnZlci5lZHUwDQYJKoZI
+# hvcNAQEMBQADggGBAH/FAFHuy+iH7Vk/LuZw8nkpQIBsQc4+A3d8YI0cJLIUh+x+
+# U78k2nZGZQQaKEy9/dCBtV9bryx5jgtt6hiNGMrWCwnzXCqatSY6PFdCXPXtUcBx
+# h/8+ud3CeE7AmGHRk4LcM9SdTmRx1XjMK9Kest4O7dBEUbgQpatb54sVESclkcIO
+# 5pUowa4kab9gCmPMcEgdyTHAxffmLEWAkoYofoS3D6eGMoJGh45VYXOSv4irKEtY
+# +wk+Km41ZdO+wplcrDvCjA0kwEzHzmmBZ4GsRbz3znKjcQrvJ9SDCBZzJ3aIlnv0
+# rd7Q3cIEnUEKgcWduCmWRg6mvY/o5b3DuwL4k9ufPonL2Ym154FATNWk3j7zJ1vd
+# bkyZcMpefCtVtgg511abPE2VDF0KvLg/WJ+FQNTAzZHzeZnhwVJpoiPGTBwa9ra8
+# zPeFPxKUwlSvh7kpTgdKE1QtPbTKq3KCt1CVzXTXPo/iCh3pPnc1HMIuFYJiRvnY
+# K4Elz1T3NrNPgL038zGCAoowggKGAgEBMGkwVDELMAkGA1UEBhMCR0IxGDAWBgNV
+# BAoTD1NlY3RpZ28gTGltaXRlZDErMCkGA1UEAxMiU2VjdGlnbyBQdWJsaWMgQ29k
+# ZSBTaWduaW5nIENBIFIzNgIRAKVN33D73PFMVIK48rFyyjEwCQYFKw4DAhoFAKB4
+# MBgGCisGAQQBgjcCAQwxCjAIoAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQB
+# gjcCAQQwHAYKKwYBBAGCNwIBCzEOMAwGCisGAQQBgjcCARUwIwYJKoZIhvcNAQkE
+# MRYEFImc6SphMTFmUHWekgVfJiVP1ed0MA0GCSqGSIb3DQEBAQUABIIBgGBcOVxb
+# yVS9XXxtNNKbXfne8ThE4PbZP/qHtfIgeDkoe6+zoFqBvjHqjnpZ3wOcqvYFL8Pd
+# Xu92RyyMY/py5ZE2mi580h9A4Ndj6sNYmwNu9j6joQF276JIpfXn1fZFkRhx7AU8
+# 7udWOwVlSSHkHAUNeehry3Q3duoyrl+3ZZrVyJsg/NA/FY/3RQjMYO/OgY0suuNX
+# jQKYVyx1N/wQitO7vDC8N7dgXcfSQcagbdaDV+mIztTIptIvNA/DPohaM5mrcq4w
+# i6LzjCRUA36ER9YupfUho8ESfGaLSREzpwVguQC5iRtGxzbJldIW31ew/e6G50gu
+# QnQS6mmmpO02ZEEjbVwuBlmezC3NUiQMVzP7Iq06sNYgXwdKiNRJAn8vFx23TiP5
+# xCN6oQJGqocWsYwflDlcbpLsNNL2y4eB5/eUL8M7KTcj8Ik0fZU5wljx8L6efe+b
+# dCPSSyfSzYp8Ra94D5anCs0pYE3cUrQjF5xbj+ENFCTEJXQGlyau9LRT9Q==
 # SIG # End signature block
