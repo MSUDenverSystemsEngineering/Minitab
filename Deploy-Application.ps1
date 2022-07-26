@@ -169,8 +169,8 @@ Try {
 
 		## <Perform Post-Installation tasks here>
 		## Delete the desktop shortcut
-		If (Test-Path "$env:Public\Desktop\Minitab Statistical Software.lnk") {
-			Remove-Item "$env:Public\Desktop\Minitab Statistical Software.lnk" -Force
+		If (Test-Path "$env:Public\Desktop\Minitab Statistical Software .lnk") {
+			Remove-Item "$env:Public\Desktop\Minitab Statistical Software .lnk" -Force
 		}
 		Else {
 			Write-Log -Message "Shortcut not detected." -Source 'Pre-Installation' -LogType 'CMTrace'
@@ -275,8 +275,8 @@ Catch {
 # SIG # Begin signature block
 # MIIU9wYJKoZIhvcNAQcCoIIU6DCCFOQCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUshdLIAcEyV0+DXyCKKeFLHiZ
-# SzigghHXMIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUQKZ6q4JMOfts9BfSKRW4qWlO
+# DoKgghHXMIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -376,13 +376,13 @@ Catch {
 # ZSBTaWduaW5nIENBIFIzNgIRAKVN33D73PFMVIK48rFyyjEwCQYFKw4DAhoFAKB4
 # MBgGCisGAQQBgjcCAQwxCjAIoAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQB
 # gjcCAQQwHAYKKwYBBAGCNwIBCzEOMAwGCisGAQQBgjcCARUwIwYJKoZIhvcNAQkE
-# MRYEFOrTt+D0YoAfrI2bKd1vsv4b/4n8MA0GCSqGSIb3DQEBAQUABIIBgHmbdJ9C
-# hLlWhPcnt0Ck458Q+MhgeOd5bTkYLgLZjbSLoYE1qJFjdZdY9Iq3kundhki13U9H
-# tlrpXt68VIV0FP05WnYlAMyJOK3Axiz/gQg02B23PQa2qmTlTflzO4OI4+Gu9EDP
-# GhGhi9BZrn/lvzfPwquEptGbRpdZ45Go+DPcpMZfK3NR8BX9gkBrlUoj2vACS8bX
-# JCR8dihNFV97zENaMT5zKXrN91hvJ5mEYQBqUX2omHicjrF7HHpVI/j40y2Vf2R9
-# MzTZkbc7TUXfX1oLe2q15r18N5CQF0UKf+H1CXvSmW4XdIWC31ZttmQgqPiOSguf
-# 4qdT78s2A//Nq/ikua3KO4/8Fjjd91Hqu6qP18nIzUiONDQ1UQJjRENsdHKUGVEa
-# YJtRaa9p4NC4uSjhnwpAMdS3hvLRnPibgILDGGaYzAtC7hZ0AFHXYAsCW7jtD1uG
-# c9OZuwCING5Ibs89zY8JbQD1gbsqpJwo7d9T4GJgbccbvOdUAqhaYc6d+w==
+# MRYEFH0jmg0doa24TOV1nJKxRXYIUcl4MA0GCSqGSIb3DQEBAQUABIIBgJ0QgVTW
+# l9qH3WsjywuAow1jSipIwDZg+NVlKvT06Z+dqnNeeyUoUwSjMNcl2cbuquTl5IoZ
+# Xao52RYYW3+FVKr7ZdZGCtnhmSj+YN8RGIjbaW2WisUhvyeuu9llDUaR4BUnSPuL
+# lh3HaGW1YfmFOYSwc4tQmPt1lpIxYcIlV77ZRw+Dy2LYBSYaQ0b9IfML1HDrzpqC
+# cepNgjWfNjmIl1hrPzjvPfOrS0C57EfMnmIVU1G6PGS9ay5lWgt7pfegCBIBJLmV
+# Veoh3/Zjy9eyQoVTKU3FhV4tUnyQi9dYWi1DXqsArZW0cbuagaBN+KxeeFZjxODZ
+# TA3rTZQFZWqc89gYYDCWWS4FAxs8dNth0/rau/YrngA5NhTTwggjTDnzY4TjokS4
+# +wonJFNRExGzW5mBXp/l3xYa2z94UTrK+mdPcmpOcJ9RrzySXqoXxOQNW/CUialm
+# G8nGCFpzCgP8z+OTXHDTOcYEaougKpJZDNKA6UmJSMSuwlhRQOkd7RsbIg==
 # SIG # End signature block
