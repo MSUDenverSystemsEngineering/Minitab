@@ -1,5 +1,4 @@
-<#
-
+﻿<#
 .SYNOPSIS
 	This script performs the installation or uninstallation of an application(s).
 	# LICENSE #
@@ -68,13 +67,13 @@ Try {
 	## Variables: Application
 	[string]$appVendor = ''
 	[string]$appName = 'Minitab'
-	[string]$appVersion = '20'
+	[string]$appVersion = '21.2.0.0'
 	[string]$appArch = 'x64'
 	[string]$appLang = 'EN'
 	[string]$appRevision = '01'
 	[string]$appScriptVersion = '1.0.0'
-	[string]$appScriptDate = '07/20/2021'
-	[string]$appScriptAuthor = 'David Torres'
+	[string]$appScriptDate = '07/26/2022'
+	[string]$appScriptAuthor = 'Craig Myers'
 	##*===============================================
 	## Variables: Install Titles (Only set here to override defaults set by the toolkit)
 	[string]$installName = ''
@@ -88,8 +87,8 @@ Try {
 
 	## Variables: Script
 	[string]$deployAppScriptFriendlyName = 'Deploy Application'
-	[version]$deployAppScriptVersion = [version]'3.8.3'
-	[string]$deployAppScriptDate = '30/09/2020'
+	[version]$deployAppScriptVersion = [version]'3.8.4'
+	[string]$deployAppScriptDate = '26/01/2021'
 	[hashtable]$deployAppScriptParameters = $psBoundParameters
 
 	## Variables: Environment
@@ -121,13 +120,18 @@ Try {
 		##*===============================================
 		[string]$installPhase = 'Pre-Installation'
 
-		## Show Welcome Message, close Internet Explorer if required, verify there is enough disk space to complete the install, and persist the prompt
+		## Show Welcome Message, close Internet Explorer if required, allow up to 3 deferrals, verify there is enough disk space to complete the install, and persist the prompt
 		Show-InstallationWelcome -CloseApps 'mtb,rmd' -CheckDiskSpace -PersistPrompt
 
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
 
 		## <Perform Pre-Installation tasks here>
+		If (Get-InstalledApplication -Name "Minitab 20") {
+			$exitCode = Remove-MSIApplications -Name "Minitab 20" -PassThru
+			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+		}
+
 		If (Get-InstalledApplication -Name "Minitab 19") {
 			$exitCode = Remove-MSIApplications -Name "Minitab 19" -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
@@ -138,6 +142,8 @@ Try {
 			$exitCode = Remove-MSIApplications -Name "Minitab 18" -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
 		}
+
+
 
 		##*===============================================
 		##* INSTALLATION
@@ -151,8 +157,9 @@ Try {
 		}
 
 		## <Perform Installation tasks here>
-		$exitCode = Execute-Process -Path "$dirFiles/minitab20.3.0.0setup.x64.exe" -Parameters "/exenoui /exelang 1033 /qn ACCEPT_EULA=1 LICENSE_PORTAL=1 DISABLE_UPDATES=1 DISABLE_ANALYTICS=1" -WindowStyle "Hidden" -WaitForMsiExec -PassThru
+		$exitCode = Execute-Process -Path "$dirFiles/minitab21.2.0.0setup.x64.exe" -Parameters "/exenoui /exelang 1033 /qn ACCEPT_EULA=1 LICENSE_PORTAL=1 DISABLE_UPDATES=1 DISABLE_ANALYTICS=1" -WindowStyle "Hidden" -WaitForMsiExec -PassThru
 		If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
+
 
 
 		##*===============================================
@@ -161,12 +168,16 @@ Try {
 		[string]$installPhase = 'Post-Installation'
 
 		## <Perform Post-Installation tasks here>
-		## Suppress the registration prompt on first run
-		##Copy-File -Path "$dirSupportFiles\license.ini" -Destination "$envProgramData\Minitab\license.ini"
-		Remove-File -Path "$envCommonDesktop\Minitab 20.lnk"
+		## Delete the desktop shortcut
+		If (Test-Path "$env:Public\Desktop\Minitab 21.lnk") {
+			Remove-Item "$env:Public\Desktop\Minitab 21.lnk" -Force
+		}
+		Else {
+			Write-Log -Message "Shortcut not detected." -Source 'Pre-Installation' -LogType 'CMTrace'
+		}
 
 		## Display a message at the end of the install
-		If (-not $useDefaultMsi) {}
+		If (-not $useDefaultMsi) { Show-InstallationPrompt -Message "$appName $appVersion has been successfully installed." -ButtonRightText 'OK' -Icon Information -NoWait }
 	}
 	ElseIf ($deploymentType -ieq 'Uninstall')
 	{
@@ -176,7 +187,7 @@ Try {
 		[string]$installPhase = 'Pre-Uninstallation'
 
 		## Show Welcome Message, close Internet Explorer with a 60 second countdown before automatically closing
-		Show-InstallationWelcome -CloseApps 'iexplore' -CloseAppsCountdown 60
+		Show-InstallationWelcome -CloseApps 'mtb,rmb' -CloseAppsCountdown 60
 
 		## Show Progress Message (with the default message)
 		Show-InstallationProgress
@@ -196,8 +207,8 @@ Try {
 		}
 
 		# <Perform Uninstallation tasks here>
-		If (Get-InstalledApplication -Name "Minitab 20") {
-			$exitCode = Remove-MSIApplications -Name "Minitab 20" -PassThru
+		If (Get-InstalledApplication -Name "Minitab 21") {
+			$exitCode = Remove-MSIApplications -Name "Minitab 21" -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
 		}
 
@@ -207,7 +218,6 @@ Try {
 		[string]$installPhase = 'Post-Uninstallation'
 
 		## <Perform Post-Uninstallation tasks here>
-
 
 	}
 	ElseIf ($deploymentType -ieq 'Repair')
@@ -240,13 +250,13 @@ Try {
 		[string]$installPhase = 'Post-Repair'
 
 		## <Perform Post-Repair tasks here>
-		If (Get-InstalledApplication -Name "Minitab 20") {
-			$exitCode = Remove-MSIApplications -Name "Minitab 20" -PassThru
+		If (Get-InstalledApplication -Name "Minitab 21") {
+			$exitCode = Remove-MSIApplications -Name "Minitab 21" -PassThru
 			If (($exitCode.ExitCode -ne "0") -and ($mainExitCode -ne "3010")) { $mainExitCode = $exitCode.ExitCode }
 		}
 
-	}
 
+    }
 	##*===============================================
 	##* END SCRIPT BODY
 	##*===============================================
@@ -265,8 +275,8 @@ Catch {
 # SIG # Begin signature block
 # MIIU9wYJKoZIhvcNAQcCoIIU6DCCFOQCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQURqVKdLHHlzheitXueM4XDgAK
-# GOqgghHXMIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUXRMqC41jaXSAMxP3StuVvk61
+# HhmgghHXMIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -366,13 +376,13 @@ Catch {
 # ZSBTaWduaW5nIENBIFIzNgIRAKVN33D73PFMVIK48rFyyjEwCQYFKw4DAhoFAKB4
 # MBgGCisGAQQBgjcCAQwxCjAIoAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQB
 # gjcCAQQwHAYKKwYBBAGCNwIBCzEOMAwGCisGAQQBgjcCARUwIwYJKoZIhvcNAQkE
-# MRYEFImc6SphMTFmUHWekgVfJiVP1ed0MA0GCSqGSIb3DQEBAQUABIIBgGBcOVxb
-# yVS9XXxtNNKbXfne8ThE4PbZP/qHtfIgeDkoe6+zoFqBvjHqjnpZ3wOcqvYFL8Pd
-# Xu92RyyMY/py5ZE2mi580h9A4Ndj6sNYmwNu9j6joQF276JIpfXn1fZFkRhx7AU8
-# 7udWOwVlSSHkHAUNeehry3Q3duoyrl+3ZZrVyJsg/NA/FY/3RQjMYO/OgY0suuNX
-# jQKYVyx1N/wQitO7vDC8N7dgXcfSQcagbdaDV+mIztTIptIvNA/DPohaM5mrcq4w
-# i6LzjCRUA36ER9YupfUho8ESfGaLSREzpwVguQC5iRtGxzbJldIW31ew/e6G50gu
-# QnQS6mmmpO02ZEEjbVwuBlmezC3NUiQMVzP7Iq06sNYgXwdKiNRJAn8vFx23TiP5
-# xCN6oQJGqocWsYwflDlcbpLsNNL2y4eB5/eUL8M7KTcj8Ik0fZU5wljx8L6efe+b
-# dCPSSyfSzYp8Ra94D5anCs0pYE3cUrQjF5xbj+ENFCTEJXQGlyau9LRT9Q==
+# MRYEFAME3r1dX578KM4ByvzmVn5Oz1L0MA0GCSqGSIb3DQEBAQUABIIBgJFN5gJu
+# wtTwAaDddEBMR9HQKkvlI7go7uVSpEDDaWKJRc8pbznmwRogS11ZWcPQm85vw6a/
+# k4KbO8mYxHBjrRv/LO8HnCWXdpvNFZMRkY2NICOtdd7vTt5pzP1T53YJRR2K+CoM
+# Cn9oJVZfPf2CAi3a/wDDeFJhGHC3/O2PH7ewWsyrehfADhmQWD4RSw8jWPM38aeE
+# WSHvFjiDGIu6GAPMolsWUDK3VPRlcEhx4qGYcSZ/rV+giXWwsBgAJq0TRT2Q9k3G
+# aY+4Tm5WqQfgt9odZuIIjVwEsowclXRxJWwxkvEi3puy84L4rU8XVKksx488B92b
+# Nt99cdEowZ6O+rUs8QgCMVARbsiZbQjKK2JYSg5cCbjZMm/z9MvyeV6x2+Iqdej0
+# ISuGt1BYlEZZCBdMVWKTmKlea0o207wCUj+sqlQzESAjW4JTXtNc/dHbhgJ9psss
+# nV3zfh61a96X4KrpeSn/j5Ewb51ZjKjqU4dCuCA7jrrdWZynUdh076wv1g==
 # SIG # End signature block
